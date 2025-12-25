@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'; // 1. Importação necessária
 
 const Login = () => {
   const brandColor = '#7F56D9';
-  const navigate = useNavigate(); // 2. Inicializa o hook de navegação
+  const navigate = useNavigate(); 
 
   // 3. Função que lida com o login
   const handleLogin = (e) => {
@@ -62,12 +62,10 @@ const Login = () => {
                 type="password" 
                 className="form-control py-2" 
                 id="password" 
-                required // Adicionei 'required' para validação básica
+                required 
                 placeholder="••••••••" 
               />
             </div>
-
-            {/* Botão Sign In */}
             <button 
               type="submit" // Mudei para submit para funcionar com o Enter
               className="btn w-100 text-white fw-bold py-2 mb-3" 
@@ -77,7 +75,6 @@ const Login = () => {
             </button>
           
           </form>
-
         </div>
       </div>
     </div>

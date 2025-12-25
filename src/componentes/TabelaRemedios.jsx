@@ -34,7 +34,6 @@ const TabelaRemedios = ({ dados, categoriaId, onEdit, onDelete, onAdd }) => {
       align: 'right',
       render: (_, record) => (
         <Space size="middle">
-          {/* Botão Editar */}
           <Tooltip title="Editar">
             <Button 
               type="text" 
@@ -43,7 +42,6 @@ const TabelaRemedios = ({ dados, categoriaId, onEdit, onDelete, onAdd }) => {
             />
           </Tooltip>
 
-          {/* Botão Deletar com Confirmação */}
           <Popconfirm
             title="Tem certeza que deseja excluir?"
             onConfirm={() => onDelete(record.id, categoriaId)}
