@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space, Tag } from 'antd';
 import { 
   MedicineBoxOutlined, 
@@ -10,22 +10,12 @@ import {
   CalculatorOutlined
 } from '@ant-design/icons';
 import TabelaRemedios from '../componentes/TabelaRemedios';
+import PessoaService from '../api/PessoaService';
 
 const Dashboard = () => {
  
   const [dadosDoEstoque, setDadosDoEstoque] = useState([
-    {
-      id: 1,
-      nome: 'Almir)',
-      itens: [
-        { id: 101, remedio: 'Losartana 50mg', estoque: 30, usoDiario: 2, quantidade: '30 un.', proximaCompra: 'Calculado...', status: 'ok' },
-      ]
-    },
-    {
-      id: 2,
-      nome: 'Carmem',
-      itens: []
-    }
+
   ]);
 
   // --- ESTADOS ---
@@ -37,7 +27,34 @@ const Dashboard = () => {
   
   const [itemForm] = Form.useForm();
   const [personForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
  
+  useEffect(() => {
+    const loadPessoas = async () => {
+      setLoading(true);
+      try {
+        console.debug('DEBUG PessoaService import:', PessoaService);
+        console.debug('CHAMANDO PessoaService.findAll()');
+        const data = await PessoaService.findAll();
+        console.debug('RETORNO PessoaService.findAll():', data);
+        // suporta paginação ({ content: [...] }) ou lista direta
+        const raw = data.content ?? data;
+        // Normaliza para array e garante `itens` como array em cada pessoa
+        const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
+          ...p,
+          itens: Array.isArray(p?.itens) ? p.itens : []
+        }));
+        console.debug('PESSOAS NORMALIZADAS:', pessoas);
+        setDadosDoEstoque(pessoas);
+      } catch (err) {
+        message.error('Erro ao carregar pessoas do servidor');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPessoas();
+  }, []);
   const calcularPrevisao = (estoque, usoDiario) => {
     if (!estoque || !usoDiario || usoDiario === 0) return { dataFormatada: 'Indefinido', status: 'ok' };
 
@@ -64,14 +81,37 @@ const Dashboard = () => {
 
   const handleSavePerson = () => {
     personForm.validateFields().then(values => {
-      setDadosDoEstoque([...dadosDoEstoque, { id: Date.now(), nome: values.nomePessoa, itens: [] }]);
-      setPersonModalVisible(false);
-      message.success('Pessoa adicionada!');
+      (async () => {
+        try {
+          const nova = { nome: values.nomePessoa, itens: [] };
+          console.debug('CHAMANDO PessoaService.save() com:', nova);
+          const saved = await PessoaService.save(nova);
+          console.debug('RETORNO PessoaService.save():', saved);
+          const savedNormalized = { ...saved, itens: Array.isArray(saved?.itens) ? saved.itens : [] };
+          setDadosDoEstoque(prev => [...prev, savedNormalized]);
+          setPersonModalVisible(false);
+          message.success('Pessoa adicionada!');
+        } catch (err) {
+          console.error(err);
+          message.error('Erro ao adicionar pessoa');
+        }
+      })();
     });
   };
 
   const handleDeletePerson = (id) => {
-    setDadosDoEstoque(dadosDoEstoque.filter(p => p.id !== id));
+    (async () => {
+      try {
+        console.debug('CHAMANDO PessoaService.delete() id=', id);
+        await PessoaService.delete(id);
+        console.debug('PessoaService.delete() concluído para id=', id);
+        setDadosDoEstoque(prev => prev.filter(p => p.id !== id));
+        message.success('Pessoa removida');
+      } catch (err) {
+        console.error(err);
+        message.error('Erro ao remover pessoa');
+      }
+    })();
   };
 
   // --- HANDLERS ITENS ---
@@ -94,6 +134,20 @@ const Dashboard = () => {
       p.id === personId ? { ...p, itens: p.itens.filter(i => i.id !== itemId) } : p
     );
     setDadosDoEstoque(novosDados);
+    (async () => {
+      try {
+        const pessoa = novosDados.find(p => p.id === personId);
+        console.debug('CHAMANDO PessoaService.update() após remoção, pessoa=', pessoa);
+        if (pessoa && pessoa.id) {
+          const res = await PessoaService.update(pessoa.id, pessoa);
+          console.debug('RETORNO PessoaService.update() after delete:', res);
+        }
+        message.success('Item removido');
+      } catch (err) {
+        console.error(err);
+        message.error('Erro ao remover item no servidor');
+      }
+    })();
   };
 
   // --- ONDE A MÁGICA ACONTECE (SALVAR COM CÁLCULO) ---
@@ -128,19 +182,31 @@ const Dashboard = () => {
 
       setDadosDoEstoque(novosDados);
       setItemModalVisible(false);
-      
-      // Mensagem inteligente
-      if (previsao.diasRestantes < 5) {
-        message.warning(`Atenção: Esse remédio acabará em ${previsao.diasRestantes} dias!`);
-      } else {
-        message.success(`Salvo! Próxima compra estimada para ${previsao.dataFormatada}`);
-      }
+      // Sincroniza pessoa alterada com backend
+      (async () => {
+        try {
+          const pessoaAtualizada = novosDados.find(p => p.id === targetPersonId);
+          console.debug('CHAMANDO PessoaService.update() com:', pessoaAtualizada);
+          if (pessoaAtualizada && pessoaAtualizada.id) {
+            const res = await PessoaService.update(pessoaAtualizada.id, pessoaAtualizada);
+            console.debug('RETORNO PessoaService.update():', res);
+          }
+          if (previsao.diasRestantes < 5) {
+            message.warning(`Atenção: Esse remédio acabará em ${previsao.diasRestantes} dias!`);
+          } else {
+            message.success(`Salvo! Próxima compra estimada para ${previsao.dataFormatada}`);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error('Erro ao sincronizar item com o servidor');
+        }
+      })();
     });
   };
 
   // KPIs
-  const totalRemedios = dadosDoEstoque.reduce((acc, p) => acc + p.itens.length, 0);
-  const comprasUrgentes = dadosDoEstoque.reduce((acc, p) => acc + p.itens.filter(i => i.status === 'urgente').length, 0);
+  const totalRemedios = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + (p?.itens?.length ?? 0), 0);
+  const comprasUrgentes = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + ((p?.itens ?? []).filter(i => i.status === 'urgente').length), 0);
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
