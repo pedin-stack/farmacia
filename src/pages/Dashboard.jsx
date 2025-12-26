@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import TabelaRemedios from '../componentes/TabelaRemedios';
 import PessoaService from '../api/PessoaService';
+import RemedioService from '../api/RemedioService';
 
 const Dashboard = () => {
  
@@ -29,22 +30,36 @@ const Dashboard = () => {
   const [personForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
  
-  useEffect(() => {
+ useEffect(() => {
     const loadPessoas = async () => {
       setLoading(true);
       try {
-        console.debug('DEBUG PessoaService import:', PessoaService);
-        console.debug('CHAMANDO PessoaService.findAll()');
         const data = await PessoaService.findAll();
-        console.debug('RETORNO PessoaService.findAll():', data);
-        // suporta paginação ({ content: [...] }) ou lista direta
+        
+  
         const raw = data.content ?? data;
-        // Normaliza para array e garante `itens` como array em cada pessoa
+        
         const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
           ...p,
-          itens: Array.isArray(p?.itens) ? p.itens : []
+    
+          itens: (p.remedios || p.itens || []).map(item => ({
+            ...item,
+            id: item.id,
+            remedio: item.nome,                
+            estoque: item.quantidade,          
+            usoDiario: item.usoDiario,
+            quantidade: `${item.quantidade} un.`, 
+            
+            proximaCompra: item.proxCompra 
+              ? item.proxCompra.split('-').reverse().join('/') 
+              : 'A calcular',
+              
+              dataIso: item.proxCompra || '',
+
+            status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao')
+          }))
         }));
-        console.debug('PESSOAS NORMALIZADAS:', pessoas);
+
         setDadosDoEstoque(pessoas);
       } catch (err) {
         message.error('Erro ao carregar pessoas do servidor');
@@ -55,24 +70,7 @@ const Dashboard = () => {
     };
     loadPessoas();
   }, []);
-  const calcularPrevisao = (estoque, usoDiario) => {
-    if (!estoque || !usoDiario || usoDiario === 0) return { dataFormatada: 'Indefinido', status: 'ok' };
-
-    const diasDeDuracao = Math.floor(estoque / usoDiario);
-    
-    // Pega a data de hoje e soma os dias
-    const dataFutura = new Date();
-    dataFutura.setDate(dataFutura.getDate() + diasDeDuracao);
-
-    // Formata para dia/mês/ano
-    const dataFormatada = dataFutura.toLocaleDateString('pt-BR');
-
-    // Define status (se sobrar menos de 5 dias, vira urgente)
-    const status = diasDeDuracao <= 5 ? 'urgente' : 'ok';
-
-    return { dataFormatada, status, diasRestantes: diasDeDuracao };
-  };
-
+ 
   // --- HANDLERS PESSOA ---
   const handleAddPerson = () => {
     personForm.resetFields();
@@ -150,63 +148,67 @@ const Dashboard = () => {
     })();
   };
 
-  // --- ONDE A MÁGICA ACONTECE (SALVAR COM CÁLCULO) ---
-  const handleSaveItem = () => {
+const handleSaveItem = () => {
     itemForm.validateFields().then(values => {
-      // 1. Executa a previsão baseada nos números inseridos
-      const previsao = calcularPrevisao(values.estoque, values.usoDiario);
-
-      const itemProcessado = {
-        remedio: values.remedio,
-        estoque: values.estoque,
-        usoDiario: values.usoDiario,
-        // Campos gerados automaticamente:
-        quantidade: `${values.estoque} un.`, // Exibição visual
-        proximaCompra: previsao.dataFormatada,
-        status: previsao.status
+ 
+      const payloadRemedio = {
+        nome: values.remedio,           
+        quantidade: values.estoque,     
+        usoDiario: values.usoDiario,   
+        pessoaId: targetPersonId        
       };
 
-      const novosDados = dadosDoEstoque.map(pessoa => {
-        if (pessoa.id === targetPersonId) {
-          const listaAtualizada = [...pessoa.itens];
-          if (editingItem) {
-            const index = listaAtualizada.findIndex(i => i.id === editingItem.id);
-            if (index > -1) listaAtualizada[index] = { ...editingItem, ...itemProcessado };
-          } else {
-            listaAtualizada.push({ id: Date.now(), ...itemProcessado });
-          }
-          return { ...pessoa, itens: listaAtualizada };
-        }
-        return pessoa;
-      });
-
-      setDadosDoEstoque(novosDados);
-      setItemModalVisible(false);
-      // Sincroniza pessoa alterada com backend
+      setLoading(true); 
       (async () => {
         try {
-          const pessoaAtualizada = novosDados.find(p => p.id === targetPersonId);
-          console.debug('CHAMANDO PessoaService.update() com:', pessoaAtualizada);
-          if (pessoaAtualizada && pessoaAtualizada.id) {
-            const res = await PessoaService.update(pessoaAtualizada.id, pessoaAtualizada);
-            console.debug('RETORNO PessoaService.update():', res);
-          }
-          if (previsao.diasRestantes < 5) {
-            message.warning(`Atenção: Esse remédio acabará em ${previsao.diasRestantes} dias!`);
+          if (editingItem) {
+            // EDITAR
+            await RemedioService.update(editingItem.id, payloadRemedio);
+            message.success('Medicamento atualizado com sucesso!');
           } else {
-            message.success(`Salvo! Próxima compra estimada para ${previsao.dataFormatada}`);
+            // CRIAR
+            await RemedioService.save(payloadRemedio);
+            message.success('Medicamento criado com sucesso!');
           }
+
+          window.location.reload(); 
+
         } catch (err) {
           console.error(err);
-          message.error('Erro ao sincronizar item com o servidor');
+          message.error('Erro ao salvar. Verifique se a API está online.');
+        } finally {
+          setLoading(false);
+          setItemModalVisible(false);
         }
       })();
     });
   };
 
-  // KPIs
+const handleDeleteRemedio = async (idRemedio) => {
+    try {
+      setLoading(true);
+      // 1. Avisa o Backend para apagar do banco
+      await RemedioService.delete(idRemedio);
+      
+      message.success('Medicamento excluído com sucesso!');
+      window.location.reload();
+
+    } catch (error) {
+      console.error(error);
+      message.error('Erro ao excluir medicamento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const totalRemedios = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + (p?.itens?.length ?? 0), 0);
-  const comprasUrgentes = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + ((p?.itens ?? []).filter(i => i.status === 'urgente').length), 0);
+const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
+
+    const urgentesDessaPessoa = pessoa.itens.filter(item => item.status === 'urgente').length;
+    return acc + urgentesDessaPessoa;
+  }, 0);
+
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
@@ -219,7 +221,17 @@ const Dashboard = () => {
       <Row gutter={[16, 16]} className="mb-4">
         <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Medicamentos Monitorados" value={totalRemedios} prefix={<MedicineBoxOutlined />} /></Card></Col>
         <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Pessoas" value={dadosDoEstoque.length} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} /></Card></Col>
-        <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Reposição Urgente" value={comprasUrgentes} valueStyle={{ color: '#cf1322' }} prefix={<AlertOutlined />} /></Card></Col>
+        <Col xs={24} sm={8}><Card>
+  <Statistic
+    title="Reposição Urgente"
+    value={totalUrgentes} 
+    precision={0}
+    valueStyle={{ color: '#cf1322' }} 
+    prefix={<AlertOutlined />}
+    suffix="itens"
+  />
+</Card>
+</Col>
       </Row>
 
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -249,7 +261,6 @@ const Dashboard = () => {
         ))}
       </Row>
 
-      {/* --- MODAL DE MEDICAMENTO (INTELIGENTE) --- */}
       <Modal
         title={editingItem ? "Editar e Recalcular" : "Novo Medicamento"}
         open={itemModalVisible}

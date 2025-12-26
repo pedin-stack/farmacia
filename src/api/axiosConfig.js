@@ -13,7 +13,7 @@ const api = axios.create({
 // Log requests for debugging
 api.interceptors.request.use((config) => {
     // eslint-disable-next-line no-console
-    console.debug('[API Request]', config.method?.toUpperCase(), config.url, config.params || '', config.data || '');
+    console.log('[API Request]', config.method?.toUpperCase(), config.url, config.params || '', config.data || '');
     return config;
 }, (error) => {
     
@@ -24,7 +24,7 @@ api.interceptors.request.use((config) => {
 // Log responses for debugging
 api.interceptors.response.use((response) => {
     // eslint-disable-next-line no-console
-    console.debug('[API Response]', response.status, response.config.url, response.data);
+    console.log('[API Response]', response.status, response.config.url, response.data);
     return response;
 }, (error) => {
     // eslint-disable-next-line no-console

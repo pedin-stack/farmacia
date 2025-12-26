@@ -23,11 +23,58 @@ const TabelaRemedios = ({ dados, categoriaId, onEdit, onDelete, onAdd }) => {
       dataIndex: 'proximaCompra',
       key: 'proximaCompra',
       align: 'center',
-      render: (data, record) => {
-        let color = record.status === 'urgente' ? 'volcano' : 'geekblue';
-        return <Tag color={color}>{data}</Tag>;
-      }
+
+      sorter: (a, b) => {
+        
+      const dataA = a.dataIso; 
+      const dataB = b.dataIso;
+
+      if (!dataA) return -1; 
+      if (!dataB) return 1;
+
+      return new Date(dataA) - new Date(dataB);
     },
+
+     render: (text, record) => {
+ 
+      let textColor = '#1890ff';       
+      let backgroundColor = '#e6f7ff'; 
+      let borderColor = '#91d5ff';     
+
+      if (record.status === 'urgente') {
+        textColor = '#cf1322';       
+        backgroundColor = '#fff1f0'; 
+        borderColor = '#ffa39e';     
+      } else if (record.status === 'atencao') {
+        textColor = '#faad14';      
+        backgroundColor = '#fffbe6'; 
+        borderColor = '#ffe58f';     
+      }
+
+      // --- ESTILO FINAL DA "ETIQUETA" ---
+      const tagStyle = {
+        color: textColor,
+        backgroundColor: backgroundColor,
+        border: `1px solid ${borderColor}`,
+        padding: '4px 8px',        
+        borderRadius: '4px',        
+        fontSize: '13px',          
+        display: 'inline-block',    
+        whiteSpace: 'nowrap'        
+      };
+
+      return (
+      
+        (text && text !== 'A calcular') ? (
+          <span style={tagStyle}>
+            {text}
+          </span>
+        ) : (
+          <span style={{ color: '#ccc' }}>{text || '-'}</span>
+        )
+      );
+    },
+  },
     {
       title: 'Ações',
       key: 'acoes',
