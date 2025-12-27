@@ -128,26 +128,31 @@ const Dashboard = () => {
   };
 
   const handleDeleteItem = (itemId, personId) => {
-    const novosDados = dadosDoEstoque.map(p => 
-      p.id === personId ? { ...p, itens: p.itens.filter(i => i.id !== itemId) } : p
-    );
-    setDadosDoEstoque(novosDados);
+    // Mostra loading ou feedback visual se desejar (opcional)
+    
     (async () => {
       try {
-        const pessoa = novosDados.find(p => p.id === personId);
-        console.debug('CHAMANDO PessoaService.update() após remoção, pessoa=', pessoa);
-        if (pessoa && pessoa.id) {
-          const res = await PessoaService.update(pessoa.id, pessoa);
-          console.debug('RETORNO PessoaService.update() after delete:', res);
-        }
-        message.success('Item removido');
+        await RemedioService.delete(itemId);
+
+        setDadosDoEstoque(prevDados => prevDados.map(pessoa => {
+          if (pessoa.id === personId) {
+            return {
+              ...pessoa,
+              itens: pessoa.itens.filter(item => item.id !== itemId)
+            };
+          }
+          return pessoa;
+        }));
+
+        message.success('Item removido com sucesso!');
+
       } catch (err) {
         console.error(err);
-        message.error('Erro ao remover item no servidor');
+        message.error('Erro ao remover item. Tente recarregar a página.');
       }
     })();
   };
-
+  
 const handleSaveItem = () => {
     itemForm.validateFields().then(values => {
  

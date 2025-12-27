@@ -1,106 +1,122 @@
-import React from 'react';
+import React, { useState } from 'react'; // Importe useState
 import { useNavigate } from 'react-router-dom';
+import AuthService from '../api/AuthService'; // Importe o serviço
+import { message } from 'antd'; // Para mostrar erro bonito
 
 const Login = () => {
   const brandColor = '#7F56D9';
   const navigate = useNavigate();
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setLoading(true);
+
+    try {
+
+      await AuthService.login(email, password);
+
+      message.success('Login realizado com sucesso!');
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error(error);
+      message.error('Email ou senha incorretos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
-      <div 
-        className="card border-0 shadow-sm p-4" 
-        style={{ maxWidth: '450px', width: '100%', borderRadius: '12px' }}
-      >
+      <div className="card border-0 shadow-sm p-4" style={{ maxWidth: '450px', width: '100%', borderRadius: '12px' }}>
         <div className="card-body px-4">
-          
-          {/* Logo / Ícone do Topo */}
+
           <div className="text-center mb-4">
-            <div 
-              className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" 
+            <div
+              className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
               style={{ width: '64px', height: '64px', backgroundColor: '#f4ebff' }}
             >
-              
-              {/* --- INÍCIO: SVG MAIS COMPRIDO (SLIM) --- */}
-<svg 
-  width="40" 
-  height="40" 
-  viewBox="0 0 64 64" 
-  fill="none" 
-  xmlns="http://www.w3.org/2000/svg"
->
-  <g transform="rotate(45 32 32)">
-    {/* Corpo da cápsula (Mais largo e um pouco mais fino) */}
-    {/* x=5, y=21, largura=54 (antes era 40), altura=22 (antes era 28) */}
-    <rect 
-      x="5" y="21" 
-      width="54" height="22" 
-      rx="11" 
-      fill="white" 
-      stroke={brandColor} 
-      strokeWidth="3" 
-    />
-    
-    {/* Metade Preenchida (A tampa) */}
-    {/* Ajustado matematicamente para coincidir com o novo corpo */}
-    <path 
-      d="M 32 21 L 48 21 C 54.075 21 59 25.925 59 32 C 59 38.075 54.075 43 48 43 L 32 43 Z" 
-      fill={brandColor} 
-    />
-    
-    {/* Linha divisória central */}
-    <line x1="32" y1="21" x2="32" y2="43" stroke={brandColor} strokeWidth="2" />
 
-    {/* Reflexo alongado para acompanhar o formato */}
-    <ellipse 
-      cx="44" cy="28" 
-      rx="8" ry="2.5" 
-      fill="white" 
-      fillOpacity="0.4" 
-      transform="rotate(-10 44 28)"
-    />
-  </g>
-</svg>
+
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 64 64"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g transform="rotate(45 32 32)">
+                  <rect
+                    x="5" y="21"
+                    width="54" height="22"
+                    rx="11"
+                    fill="white"
+                    stroke={brandColor}
+                    strokeWidth="3"
+                  />
+
+                  <path
+                    d="M 32 21 L 48 21 C 54.075 21 59 25.925 59 32 C 59 38.075 54.075 43 48 43 L 32 43 Z"
+                    fill={brandColor}
+                  />
+
+                  <line x1="32" y1="21" x2="32" y2="43" stroke={brandColor} strokeWidth="2" />
+
+                  <ellipse
+                    cx="44" cy="28"
+                    rx="8" ry="2.5"
+                    fill="white"
+                    fillOpacity="0.4"
+                    transform="rotate(-10 44 28)"
+                  />
+                </g>
+              </svg>
 
             </div>
-            
+
             <h2 className="fw-bold mb-2 text-dark">Bem-vindo de volta</h2>
             <p className="text-muted mb-4">Insira suas credenciais para acessar o estoque.</p>
           </div>
 
+
           <form onSubmit={handleLogin}>
             <div className="mb-3">
               <label htmlFor="email" className="form-label fw-bold text-secondary small">Email</label>
-              <input 
-                type="email" 
-                className="form-control py-2" 
-                id="email" 
-                required 
-                placeholder="nome@exemplo.com" 
+              <input
+                type="email"
+                className="form-control py-2"
+                id="email"
+                required
+                placeholder="nome@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)} // <-- Liga ao estado
               />
             </div>
 
             <div className="mb-3">
               <label htmlFor="password" className="form-label fw-bold text-secondary small">Senha</label>
-              <input 
-                type="password" 
-                className="form-control py-2" 
-                id="password" 
-                required 
-                placeholder="••••••••" 
+              <input
+                type="password"
+                className="form-control py-2"
+                id="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            
-            <button 
-              type="submit" 
-              className="btn w-100 text-white fw-bold py-2 mb-3 shadow-sm" 
+
+            <button
+              type="submit"
+              disabled={loading} // Desabilita enquanto carrega
+              className="btn w-100 text-white fw-bold py-2 mb-3 shadow-sm"
               style={{ backgroundColor: brandColor, borderColor: brandColor }}
             >
-              Entrar
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         </div>
