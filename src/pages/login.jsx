@@ -1,8 +1,8 @@
-import React, { useState } from 'react'; // Importe useState
+import React, { useState } from 'react'; 
 import { useNavigate } from 'react-router-dom';
-import AuthService from '../api/AuthService'; // Importe o serviço
-import { message } from 'antd'; // Para mostrar erro bonito
-
+import AuthService from '../api/AuthService'; 
+import { message } from 'antd'; 
+import { Input, Button, Form} from 'antd';
 const Login = () => {
   const brandColor = '#7F56D9';
   const navigate = useNavigate();
@@ -84,41 +84,43 @@ const Login = () => {
 
 
           <form onSubmit={handleLogin}>
-            <div className="mb-3">
-              <label htmlFor="email" className="form-label fw-bold text-secondary small">Email</label>
-              <input
-                type="email"
-                className="form-control py-2"
-                id="email"
-                required
-                placeholder="nome@exemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)} // <-- Liga ao estado
-              />
-            </div>
+  <div className="mb-3">
+    <label htmlFor="email" className="form-label fw-bold text-secondary small">Email</label>
+    {/* REFATORADO: Trocamos o <input> nativo pelo <Input> do Ant Design.
+       Usamos size="large" para ficar alto e bonito.
+    */}
+    <Input
+      size="large"
+      type="email"
+      id="email"
+      placeholder="nome@exemplo.com"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+    />
+  </div>
 
-            <div className="mb-3">
-              <label htmlFor="password" className="form-label fw-bold text-secondary small">Senha</label>
-              <input
-                type="password"
-                className="form-control py-2"
-                id="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+  <div className="mb-3">
+    <label htmlFor="password" className="form-label fw-bold text-secondary small">Senha</label>
+   
+    <Input.Password
+      size="large"
+      id="password"
+      placeholder="Digite sua senha"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+     
+    />
+  </div>
 
-            <button
-              type="submit"
-              disabled={loading} // Desabilita enquanto carrega
-              className="btn w-100 text-white fw-bold py-2 mb-3 shadow-sm"
-              style={{ backgroundColor: brandColor, borderColor: brandColor }}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
+  <button
+    type="submit"
+    disabled={loading}
+    className="btn w-100 text-white fw-bold py-2 mb-3 shadow-sm"
+    style={{ backgroundColor: brandColor, borderColor: brandColor }}
+  >
+    {loading ? 'Entrando...' : 'Entrar'}
+  </button>
+</form>
         </div>
       </div>
     </div>
