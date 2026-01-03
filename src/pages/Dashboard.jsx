@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space, Tag } from 'antd';
+import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space } from 'antd';
 import { 
   MedicineBoxOutlined, 
   AlertOutlined, 
@@ -15,9 +15,7 @@ import RemedioService from '../api/RemedioService';
 
 const Dashboard = () => {
  
-  const [dadosDoEstoque, setDadosDoEstoque] = useState([
-
-  ]);
+  const [dadosDoEstoque, setDadosDoEstoque] = useState([]);
 
   // --- ESTADOS ---
   const [itemModalVisible, setItemModalVisible] = useState(false);
@@ -36,12 +34,10 @@ const Dashboard = () => {
       try {
         const data = await PessoaService.findAll();
         
-  
         const raw = data.content ?? data;
         
         const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
           ...p,
-    
           itens: (p.remedios || p.itens || []).map(item => ({
             ...item,
             id: item.id,
@@ -54,8 +50,7 @@ const Dashboard = () => {
               ? item.proxCompra.split('-').reverse().join('/') 
               : 'A calcular',
               
-              dataIso: item.proxCompra || '',
-
+            dataIso: item.proxCompra || '',
             status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao')
           }))
         }));
@@ -82,9 +77,7 @@ const Dashboard = () => {
       (async () => {
         try {
           const nova = { nome: values.nomePessoa, itens: [] };
-          console.debug('CHAMANDO PessoaService.save() com:', nova);
           const saved = await PessoaService.save(nova);
-          console.debug('RETORNO PessoaService.save():', saved);
           const savedNormalized = { ...saved, itens: Array.isArray(saved?.itens) ? saved.itens : [] };
           setDadosDoEstoque(prev => [...prev, savedNormalized]);
           setPersonModalVisible(false);
@@ -100,9 +93,7 @@ const Dashboard = () => {
   const handleDeletePerson = (id) => {
     (async () => {
       try {
-        console.debug('CHAMANDO PessoaService.delete() id=', id);
         await PessoaService.delete(id);
-        console.debug('PessoaService.delete() concluído para id=', id);
         setDadosDoEstoque(prev => prev.filter(p => p.id !== id));
         message.success('Pessoa removida');
       } catch (err) {
@@ -128,12 +119,9 @@ const Dashboard = () => {
   };
 
   const handleDeleteItem = (itemId, personId) => {
-    // Mostra loading ou feedback visual se desejar (opcional)
-    
     (async () => {
       try {
         await RemedioService.delete(itemId);
-
         setDadosDoEstoque(prevDados => prevDados.map(pessoa => {
           if (pessoa.id === personId) {
             return {
@@ -143,19 +131,16 @@ const Dashboard = () => {
           }
           return pessoa;
         }));
-
         message.success('Item removido com sucesso!');
-
       } catch (err) {
         console.error(err);
-        message.error('Erro ao remover item. Tente recarregar a página.');
+        message.error('Erro ao remover item.');
       }
     })();
   };
   
 const handleSaveItem = () => {
     itemForm.validateFields().then(values => {
- 
       const payloadRemedio = {
         nome: values.remedio,           
         quantidade: values.estoque,     
@@ -167,20 +152,16 @@ const handleSaveItem = () => {
       (async () => {
         try {
           if (editingItem) {
-            // EDITAR
             await RemedioService.update(editingItem.id, payloadRemedio);
-            message.success('Medicamento atualizado com sucesso!');
+            message.success('Medicamento atualizado!');
           } else {
-            // CRIAR
             await RemedioService.save(payloadRemedio);
-            message.success('Medicamento criado com sucesso!');
+            message.success('Medicamento criado!');
           }
-
           window.location.reload(); 
-
         } catch (err) {
           console.error(err);
-          message.error('Erro ao salvar. Verifique se a API está online.');
+          message.error('Erro ao salvar.');
         } finally {
           setLoading(false);
           setItemModalVisible(false);
@@ -189,27 +170,8 @@ const handleSaveItem = () => {
     });
   };
 
-const handleDeleteRemedio = async (idRemedio) => {
-    try {
-      setLoading(true);
-      // 1. Avisa o Backend para apagar do banco
-      await RemedioService.delete(idRemedio);
-      
-      message.success('Medicamento excluído com sucesso!');
-      window.location.reload();
-
-    } catch (error) {
-      console.error(error);
-      message.error('Erro ao excluir medicamento.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
   const totalRemedios = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + (p?.itens?.length ?? 0), 0);
-const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
-
+  const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
     const urgentesDessaPessoa = pessoa.itens.filter(item => item.status === 'urgente').length;
     return acc + urgentesDessaPessoa;
   }, 0);
@@ -226,22 +188,32 @@ const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
       <Row gutter={[16, 16]} className="mb-4">
         <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Medicamentos Monitorados" value={totalRemedios} prefix={<MedicineBoxOutlined />} /></Card></Col>
         <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Pessoas" value={dadosDoEstoque.length} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} /></Card></Col>
-        <Col xs={24} sm={8}><Card>
-  <Statistic
-    title="Reposição Urgente"
-    value={totalUrgentes} 
-    precision={0}
-    valueStyle={{ color: '#cf1322' }} 
-    prefix={<AlertOutlined />}
-    suffix="itens"
-  />
-</Card>
-</Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="Reposição Urgente"
+              value={totalUrgentes} 
+              precision={0}
+              valueStyle={{ color: '#cf1322' }} 
+              prefix={<AlertOutlined />}
+              suffix="itens"
+            />
+          </Card>
+        </Col>
       </Row>
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <Divider orientation="left" style={{ margin: 0, width: 'auto', minWidth: '150px' }}>Medicamentos por Pessoa</Divider>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPerson}>Nova Pessoa</Button>
+     
+     <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <Divider 
+          orientation="center" 
+          style={{ margin: 0, width: 'auto', minWidth: '150px', flexGrow: 1 }}
+        >
+            Medicamentos por Pessoa
+        </Divider>
+        
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPerson}>
+            Nova Pessoa
+        </Button>
       </div>
 
       <Row gutter={[24, 24]}>
@@ -273,39 +245,45 @@ const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
         onCancel={() => setItemModalVisible(false)}
         okText="Calcular e Salvar"
         cancelText="Cancelar"
+        width="95%"
+        style={{ maxWidth: 520 }}
+        bodyStyle={{ padding: '1rem' }}
+        wrapClassName="d-flex align-items-start justify-content-center"
       >
-        <Form form={itemForm} layout="vertical">
-          <Form.Item name="remedio" label="Nome do Medicamento" rules={[{ required: true }]}>
-            <Input prefix={<MedicineBoxOutlined />} placeholder="Ex: Losartana" />
-          </Form.Item>
-          
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item 
-                name="estoque" 
-                label="Estoque Atual (Unidades)" 
-                tooltip="Quantos comprimidos você tem na caixa agora?"
-                rules={[{ required: true, message: 'Obrigatório para o cálculo' }]}
-              >
-                <InputNumber style={{ width: '100%' }} min={1} placeholder="Ex: 30" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item 
-                name="usoDiario" 
-                label="Uso por Dia" 
-                tooltip="Quantos comprimidos a pessoa toma por dia?"
-                rules={[{ required: true, message: 'Obrigatório' }]}
-              >
-                <InputNumber style={{ width: '100%' }} min={1} placeholder="Ex: 2" />
-              </Form.Item>
-            </Col>
-          </Row>
+        <div className="container-fluid px-2">
+          <Form form={itemForm} layout="vertical">
+            <Form.Item name="remedio" label="Nome do Medicamento" rules={[{ required: true }]}>
+              <Input prefix={<MedicineBoxOutlined />} placeholder="Ex: Losartana 5mg" className="w-100" />
+            </Form.Item>
 
-          <div className="bg-light p-3 rounded text-center text-muted">
-            <CalculatorOutlined /> O sistema calculará a data da próxima compra automaticamente.
-          </div>
-        </Form>
+            <Row gutter={12} className="gx-2">
+              <Col xs={24} sm={12} className="mb-2">
+                <Form.Item 
+                  name="estoque" 
+                  label="Estoque Atual (Unidades)" 
+                  tooltip="Quantos comprimidos você tem na caixa agora?"
+                  rules={[{ required: true, message: 'Obrigatório para o cálculo' }]}
+                >
+                  <InputNumber style={{ width: '100%' }} min={1} placeholder="Ex: 30" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} className="mb-2">
+                <Form.Item 
+                  name="usoDiario" 
+                  label="Uso por Dia" 
+                  tooltip="Quantos comprimidos a pessoa toma por dia?"
+                  rules={[{ required: true, message: 'Obrigatório' }]}
+                >
+                  <InputNumber style={{ width: '100%' }} min={1} placeholder="Ex: 2" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <div className="bg-light p-3 rounded text-center text-muted w-100">
+              <CalculatorOutlined /> O sistema calculará a data da próxima compra automaticamente.
+            </div>
+          </Form>
+        </div>
       </Modal>
 
       {/* --- MODAL PESSOA --- */}
