@@ -70,7 +70,7 @@ const Dashboard = () => {
 
  useEffect(() => {
 
-  fetchData();
+ 
   
     const loadPessoas = async () => {
       setLoading(true);
@@ -304,13 +304,15 @@ const handleSaveItem = () => {
         title={editingItem ? "Editar e Recalcular" : "Novo Medicamento"}
         open={itemModalVisible}
         onOk={handleSaveItem}
-        onCancel={() => setItemModalVisible(false)}
+        onCancel={() => { setItemModalVisible(false); itemForm.resetFields(); }}
         okText="Calcular e Salvar"
         cancelText="Cancelar"
         width="95%"
         style={{ maxWidth: 520 }}
         bodyStyle={{ padding: '1rem' }}
         wrapClassName="d-flex align-items-start justify-content-center"
+        destroyOnClose
+        maskClosable={true}
       >
         <div className="container-fluid px-2">
           <Form form={itemForm} layout="vertical">
@@ -361,7 +363,7 @@ const handleSaveItem = () => {
         title="Nova Pessoa"
         open={personModalVisible}
         onOk={handleSavePerson}
-        onCancel={() => setPersonModalVisible(false)}
+        onCancel={() => { setPersonModalVisible(false); personForm.resetFields(); }}
         okText="Adicionar"
       >
         <Form form={personForm} layout="vertical">
