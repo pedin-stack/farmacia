@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space } from 'antd';
+import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space, TimePicker } from 'antd';
 import { 
   MedicineBoxOutlined, 
   AlertOutlined, 
@@ -12,6 +12,7 @@ import {
 import TabelaRemedios from '../componentes/TabelaRemedios';
 import PessoaService from '../api/PessoaService';
 import RemedioService from '../api/RemedioService';
+import moment from 'moment';
 
 const Dashboard = () => {
  
@@ -28,7 +29,49 @@ const Dashboard = () => {
   const [personForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
  
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const data = await PessoaService.findAll();
+      const raw = data.content ?? data;
+      
+      const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
+        ...p,
+        itens: (p.remedios || p.itens || []).map(item => ({
+          ...item,
+          id: item.id,
+          remedio: item.nome,
+          estoque: item.quantidade,
+          usoDiario: item.usoDiario,
+          quantidade: `${item.quantidade} un.`,
+          
+          proximaCompra: item.proxCompra
+            ? item.proxCompra.split('-').reverse().join('/')
+            : 'A calcular',
+
+          dataIso: item.proxCompra || '',
+          status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao'),
+
+          // TRATAMENTO DO HORÁRIO PARA EXIBIÇÃO
+          horario: item.horaConsumo ? item.horaConsumo.substring(0,5) : '-', 
+          horaIso: item.horaConsumo || ''
+        }))
+      }));
+
+      setDadosDoEstoque(pessoas);
+    } catch (err) {
+      message.error('Erro ao carregar dados');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+};
+
  useEffect(() => {
+
+  fetchData();
+  
     const loadPessoas = async () => {
       setLoading(true);
       try {
@@ -41,17 +84,20 @@ const Dashboard = () => {
           itens: (p.remedios || p.itens || []).map(item => ({
             ...item,
             id: item.id,
-            remedio: item.nome,                
-            estoque: item.quantidade,          
+            remedio: item.nome,
+            estoque: item.quantidade,
             usoDiario: item.usoDiario,
-            quantidade: `${item.quantidade} un.`, 
-            
-            proximaCompra: item.proxCompra 
-              ? item.proxCompra.split('-').reverse().join('/') 
+            quantidade: `${item.quantidade} un.`,
+
+            proximaCompra: item.proxCompra
+              ? item.proxCompra.split('-').reverse().join('/')
               : 'A calcular',
-              
+
             dataIso: item.proxCompra || '',
-            status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao')
+            status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao'),
+
+            horario: item.horaConsumo ? (typeof item.horaConsumo === 'string' ? item.horaConsumo.substring(0,5) : '') : '-',
+            horaIso: item.horaConsumo || ''
           }))
         }));
 
@@ -114,7 +160,12 @@ const Dashboard = () => {
   const handleEditItem = (item, personId) => {
     setEditingItem(item);
     setTargetPersonId(personId);
-    itemForm.setFieldsValue(item);
+    // Converte o horário string para moment para o TimePicker
+    const valuesForForm = {
+      ...item,
+      horario: item.horario && item.horario !== '-' ? moment(item.horario, 'HH:mm') : null
+    };
+    itemForm.setFieldsValue(valuesForForm);
     setItemModalVisible(true);
   };
 
@@ -144,13 +195,20 @@ const handleSaveItem = () => {
       const payloadRemedio = {
         nome: values.remedio,           
         quantidade: values.estoque,     
-        usoDiario: values.usoDiario,   
+        usoDiario: values.usoDiario,    
         pessoaId: targetPersonId        
       };
+      
+      // Formata o horário corretamente para o Backend (HH:mm:ss)
+      if (values.horario) {
+        payloadRemedio.horaConsumo = values.horario.format('HH:mm:ss');
+      }
 
       setLoading(true); 
       (async () => {
         try {
+          console.log('Enviando:', payloadRemedio);
+          
           if (editingItem) {
             await RemedioService.update(editingItem.id, payloadRemedio);
             message.success('Medicamento atualizado!');
@@ -158,13 +216,17 @@ const handleSaveItem = () => {
             await RemedioService.save(payloadRemedio);
             message.success('Medicamento criado!');
           }
-          window.location.reload(); 
+          
+          // --- AQUI ESTÁ A CORREÇÃO ---
+          setItemModalVisible(false); // Fecha o modal primeiro
+          await fetchData();          // Recarrega os dados sem dar refresh na página (mantém o token)
+          
         } catch (err) {
           console.error(err);
-          message.error('Erro ao salvar.');
+          // Detalhe melhor o erro se possível
+          message.error('Erro ao salvar. Verifique se a pessoa existe.');
         } finally {
           setLoading(false);
-          setItemModalVisible(false);
         }
       })();
     });
@@ -275,6 +337,14 @@ const handleSaveItem = () => {
                   rules={[{ required: true, message: 'Obrigatório' }]}
                 >
                   <InputNumber style={{ width: '100%' }} min={1} placeholder="Ex: 2" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={12} className="gx-2 mt-2">
+              <Col xs={24} className="mb-2">
+                <Form.Item name="horario" label="Horário de Consumo" tooltip="Hora em que o medicamento deve ser tomado">
+                  <TimePicker format="HH:mm" style={{ width: '100%' }} placeholder="Ex: 08:30" />
                 </Form.Item>
               </Col>
             </Row>

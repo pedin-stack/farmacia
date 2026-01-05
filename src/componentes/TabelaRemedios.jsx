@@ -84,6 +84,18 @@ const TabelaRemedios = ({ dados, categoriaId, onEdit, onDelete, onAdd }) => {
       },
     },
     {
+      title: 'Horário',
+      dataIndex: 'horario',
+      key: 'horario',
+      align: 'center',
+      width: 80,
+      render: (text) => (
+        <span style={{ fontSize: '12px', color: text && text !== '-' ? '#000' : '#999' }}>
+          {text || '-'}
+        </span>
+      ),
+    },
+    {
       title: 'Ações',
       key: 'acoes',
       align: 'right',
