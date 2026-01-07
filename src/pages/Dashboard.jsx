@@ -13,6 +13,7 @@ import TabelaRemedios from '../componentes/TabelaRemedios';
 import PessoaService from '../api/PessoaService';
 import RemedioService from '../api/RemedioService';
 import moment from 'moment';
+import ChatAssistant from '../componentes/ChatAssistant'
 
 const Dashboard = () => {
  
@@ -70,7 +71,6 @@ const Dashboard = () => {
 
  useEffect(() => {
 
- 
   
     const loadPessoas = async () => {
       setLoading(true);
@@ -149,7 +149,7 @@ const Dashboard = () => {
     })();
   };
 
-  // --- HANDLERS ITENS ---
+ 
   const handleAddItem = (personId) => {
     setEditingItem(null);
     setTargetPersonId(personId);
@@ -199,7 +199,6 @@ const handleSaveItem = () => {
         pessoaId: targetPersonId        
       };
       
-      // Formata o horário corretamente para o Backend (HH:mm:ss)
       if (values.horario) {
         payloadRemedio.horaConsumo = values.horario.format('HH:mm:ss');
       }
@@ -217,13 +216,13 @@ const handleSaveItem = () => {
             message.success('Medicamento criado!');
           }
           
-          // --- AQUI ESTÁ A CORREÇÃO ---
-          setItemModalVisible(false); // Fecha o modal primeiro
-          await fetchData();          // Recarrega os dados sem dar refresh na página (mantém o token)
+       
+          setItemModalVisible(false); 
+          await fetchData();         
           
         } catch (err) {
           console.error(err);
-          // Detalhe melhor o erro se possível
+         
           message.error('Erro ao salvar. Verifique se a pessoa existe.');
         } finally {
           setLoading(false);
@@ -372,6 +371,8 @@ const handleSaveItem = () => {
           </Form.Item>
         </Form>
       </Modal>
+      
+<ChatAssistant dadosEstoque={dadosDoEstoque} />
 
     </div>
   );
