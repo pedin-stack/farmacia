@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, message, Button, Popconfirm, Avatar, Space, TimePicker } from 'antd';
+import React from 'react';
+import { Card, Col, Row, Statistic, Divider, Modal, Form, Input, InputNumber, Button, Popconfirm, Avatar, Space, TimePicker } from 'antd';
 import { 
   MedicineBoxOutlined, 
   AlertOutlined, 
@@ -10,252 +10,93 @@ import {
   CalculatorOutlined
 } from '@ant-design/icons';
 import TabelaRemedios from '../componentes/TabelaRemedios';
-import PessoaService from '../api/PessoaService';
-import RemedioService from '../api/RemedioService';
-import moment from 'moment';
+import useDashboard from '../use/useDashboard';
 import ChatAssistant from '../componentes/ChatAssistant'
 
 const Dashboard = () => {
- 
-  const [dadosDoEstoque, setDadosDoEstoque] = useState([]);
-
-  // --- ESTADOS ---
-  const [itemModalVisible, setItemModalVisible] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [targetPersonId, setTargetPersonId] = useState(null);
-  
-  const [personModalVisible, setPersonModalVisible] = useState(false);
-  
   const [itemForm] = Form.useForm();
   const [personForm] = Form.useForm();
-  const [loading, setLoading] = useState(false);
- 
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const data = await PessoaService.findAll();
-      const raw = data.content ?? data;
-      
-      const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
-        ...p,
-        itens: (p.remedios || p.itens || []).map(item => ({
-          ...item,
-          id: item.id,
-          remedio: item.nome,
-          estoque: item.quantidade,
-          usoDiario: item.usoDiario,
-          quantidade: `${item.quantidade} un.`,
-          
-          proximaCompra: item.proxCompra
-            ? item.proxCompra.split('-').reverse().join('/')
-            : 'A calcular',
+  const {
+    dadosDoEstoque,
+    loading,
+    itemModalVisible,
+    editingItem,
+    personModalVisible,
+    handleAddPerson,
+    handleSavePerson,
+    handleDeletePerson,
+    handleAddItem,
+    handleEditItem,
+    handleDeleteItem,
+    handleSaveItem,
+    totalRemedios,
+    totalUrgentes,
+    getEditingItemForForm,
+    closeItemModal,
+    closePersonModal
+  } = useDashboard();
 
-          dataIso: item.proxCompra || '',
-          status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao'),
-
-          // TRATAMENTO DO HORÁRIO PARA EXIBIÇÃO
-          horario: item.horaConsumo ? item.horaConsumo.substring(0,5) : '-', 
-          horaIso: item.horaConsumo || ''
-        }))
-      }));
-
-      setDadosDoEstoque(pessoas);
-    } catch (err) {
-      message.error('Erro ao carregar dados');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-};
-
- useEffect(() => {
-
-  
-    const loadPessoas = async () => {
-      setLoading(true);
-      try {
-        const data = await PessoaService.findAll();
-        
-        const raw = data.content ?? data;
-        
-        const pessoas = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(p => ({
-          ...p,
-          itens: (p.remedios || p.itens || []).map(item => ({
-            ...item,
-            id: item.id,
-            remedio: item.nome,
-            estoque: item.quantidade,
-            usoDiario: item.usoDiario,
-            quantidade: `${item.quantidade} un.`,
-
-            proximaCompra: item.proxCompra
-              ? item.proxCompra.split('-').reverse().join('/')
-              : 'A calcular',
-
-            dataIso: item.proxCompra || '',
-            status: item.status === 'NORMAL' ? 'ok' : (item.status === 'URGENTE' ? 'urgente' : 'atencao'),
-
-            horario: item.horaConsumo ? (typeof item.horaConsumo === 'string' ? item.horaConsumo.substring(0,5) : '') : '-',
-            horaIso: item.horaConsumo || ''
-          }))
-        }));
-
-        setDadosDoEstoque(pessoas);
-      } catch (err) {
-        message.error('Erro ao carregar pessoas do servidor');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPessoas();
-  }, []);
- 
-  // --- HANDLERS PESSOA ---
-  const handleAddPerson = () => {
-    personForm.resetFields();
-    setPersonModalVisible(true);
-  };
-
-  const handleSavePerson = () => {
+  // Handlers de formulário
+  const onSavePerson = () => {
     personForm.validateFields().then(values => {
-      (async () => {
-        try {
-          const nova = { nome: values.nomePessoa, itens: [] };
-          const saved = await PessoaService.save(nova);
-          const savedNormalized = { ...saved, itens: Array.isArray(saved?.itens) ? saved.itens : [] };
-          setDadosDoEstoque(prev => [...prev, savedNormalized]);
-          setPersonModalVisible(false);
-          message.success('Pessoa adicionada!');
-        } catch (err) {
-          console.error(err);
-          message.error('Erro ao adicionar pessoa');
-        }
-      })();
+      handleSavePerson(values);
+      personForm.resetFields();
     });
   };
 
-  const handleDeletePerson = (id) => {
-    (async () => {
-      try {
-        await PessoaService.delete(id);
-        setDadosDoEstoque(prev => prev.filter(p => p.id !== id));
-        message.success('Pessoa removida');
-      } catch (err) {
-        console.error(err);
-        message.error('Erro ao remover pessoa');
-      }
-    })();
-  };
-
- 
-  const handleAddItem = (personId) => {
-    setEditingItem(null);
-    setTargetPersonId(personId);
-    itemForm.resetFields();
-    setItemModalVisible(true);
-  };
-
-  const handleEditItem = (item, personId) => {
-    setEditingItem(item);
-    setTargetPersonId(personId);
-    // Converte o horário string para moment para o TimePicker
-    const valuesForForm = {
-      ...item,
-      horario: item.horario && item.horario !== '-' ? moment(item.horario, 'HH:mm') : null
-    };
-    itemForm.setFieldsValue(valuesForForm);
-    setItemModalVisible(true);
-  };
-
-  const handleDeleteItem = (itemId, personId) => {
-    (async () => {
-      try {
-        await RemedioService.delete(itemId);
-        setDadosDoEstoque(prevDados => prevDados.map(pessoa => {
-          if (pessoa.id === personId) {
-            return {
-              ...pessoa,
-              itens: pessoa.itens.filter(item => item.id !== itemId)
-            };
-          }
-          return pessoa;
-        }));
-        message.success('Item removido com sucesso!');
-      } catch (err) {
-        console.error(err);
-        message.error('Erro ao remover item.');
-      }
-    })();
-  };
-  
-const handleSaveItem = () => {
+  const onSaveItem = () => {
     itemForm.validateFields().then(values => {
-      const payloadRemedio = {
-        nome: values.remedio,           
-        quantidade: values.estoque,     
-        usoDiario: values.usoDiario,    
-        pessoaId: targetPersonId        
-      };
-      
-      if (values.horario) {
-        payloadRemedio.horaConsumo = values.horario.format('HH:mm:ss');
-      }
-
-      setLoading(true); 
-      (async () => {
-        try {
-          console.log('Enviando:', payloadRemedio);
-          
-          if (editingItem) {
-            await RemedioService.update(editingItem.id, payloadRemedio);
-            message.success('Medicamento atualizado!');
-          } else {
-            await RemedioService.save(payloadRemedio);
-            message.success('Medicamento criado!');
-          }
-          
-       
-          setItemModalVisible(false); 
-          await fetchData();         
-          
-        } catch (err) {
-          console.error(err);
-         
-          message.error('Erro ao salvar. Verifique se a pessoa existe.');
-        } finally {
-          setLoading(false);
-        }
-      })();
+      handleSaveItem(values);
+      itemForm.resetFields();
     });
   };
 
-  const totalRemedios = (Array.isArray(dadosDoEstoque) ? dadosDoEstoque : []).reduce((acc, p) => acc + (p?.itens?.length ?? 0), 0);
-  const totalUrgentes = dadosDoEstoque.reduce((acc, pessoa) => {
-    const urgentesDessaPessoa = pessoa.itens.filter(item => item.status === 'urgente').length;
-    return acc + urgentesDessaPessoa;
-  }, 0);
+  const onCancelItemModal = () => {
+    closeItemModal();
+    itemForm.resetFields();
+  };
+
+  const onCancelPersonModal = () => {
+    closePersonModal();
+    personForm.resetFields();
+  };
+
+  // Ao editar item, popula o form
+  React.useEffect(() => {
+    if (editingItem && itemModalVisible) {
+      itemForm.setFieldsValue(getEditingItemForForm());
+    }
+  }, [editingItem, itemModalVisible, itemForm, getEditingItemForForm]);
 
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-      
+      {/* Cabeçalho */}
       <div className="mb-4">
         <h2 style={{ margin: 0 }}>Farmácia Inteligente</h2>
         <span className="text-muted">Cálculo automático de reposição</span>
       </div>
 
+      {/* Estatísticas */}
       <Row gutter={[16, 16]} className="mb-4">
-        <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Medicamentos Monitorados" value={totalRemedios} prefix={<MedicineBoxOutlined />} /></Card></Col>
-        <Col xs={24} sm={8}><Card bordered={false}><Statistic title="Pessoas" value={dadosDoEstoque.length} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} /></Card></Col>
+        <Col xs={24} sm={8}>
+          <Card bordered={false}>
+            <Statistic title="Medicamentos Monitorados" value={totalRemedios} prefix={<MedicineBoxOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card bordered={false}>
+            <Statistic title="Pessoas" value={dadosDoEstoque.length} prefix={<TeamOutlined style={{ color: '#52c41a' }} />} />
+          </Card>
+        </Col>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="Reposição Urgente"
-              value={totalUrgentes} 
+              value={totalUrgentes}
               precision={0}
-              valueStyle={{ color: '#cf1322' }} 
+              valueStyle={{ color: '#cf1322' }}
               prefix={<AlertOutlined />}
               suffix="itens"
             />
@@ -263,32 +104,33 @@ const handleSaveItem = () => {
         </Col>
       </Row>
 
-     
-     <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-        <Divider 
-          orientation="center" 
-          style={{ margin: 0, width: 'auto', minWidth: '150px', flexGrow: 1 }}
-        >
-            Medicamentos por Pessoa
+      {/* Título e botão */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <Divider orientation="center" style={{ margin: 0, width: 'auto', minWidth: '150px', flexGrow: 1 }}>
+          Medicamentos por Pessoa
         </Divider>
-        
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPerson}>
-            Nova Pessoa
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPerson} loading={loading}>
+          Nova Pessoa
         </Button>
       </div>
 
+      {/* Cards de pessoas */}
       <Row gutter={[24, 24]}>
         {dadosDoEstoque.map((pessoa) => (
           <Col xs={24} lg={12} xl={8} key={pessoa.id}>
-            <Card 
-              title={<Space><Avatar style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} /><span>{pessoa.nome}</span></Space>} 
-              bordered={false} 
-              hoverable 
+            <Card
+              title={<Space><Avatar style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} /><span>{pessoa.nome}</span></Space>}
+              bordered={false}
+              hoverable
               style={{ height: '100%' }}
-              extra={<Popconfirm title="Remover?" onConfirm={() => handleDeletePerson(pessoa.id)}><Button type="text" danger icon={<DeleteOutlined />} /></Popconfirm>}
+              extra={
+                <Popconfirm title="Remover?" onConfirm={() => handleDeletePerson(pessoa.id)}>
+                  <Button type="text" danger icon={<DeleteOutlined />} loading={loading} />
+                </Popconfirm>
+              }
             >
-              <TabelaRemedios 
-                dados={pessoa.itens} 
+              <TabelaRemedios
+                dados={pessoa.itens}
                 categoriaId={pessoa.id}
                 onAdd={handleAddItem}
                 onEdit={handleEditItem}
@@ -299,11 +141,12 @@ const handleSaveItem = () => {
         ))}
       </Row>
 
+      {/* Modal Medicamento */}
       <Modal
-        title={editingItem ? "Editar e Recalcular" : "Novo Medicamento"}
+        title={editingItem ? 'Editar e Recalcular' : 'Novo Medicamento'}
         open={itemModalVisible}
-        onOk={handleSaveItem}
-        onCancel={() => { setItemModalVisible(false); itemForm.resetFields(); }}
+        onOk={onSaveItem}
+        onCancel={onCancelItemModal}
         okText="Calcular e Salvar"
         cancelText="Cancelar"
         width="95%"
@@ -312,6 +155,7 @@ const handleSaveItem = () => {
         wrapClassName="d-flex align-items-start justify-content-center"
         destroyOnClose
         maskClosable={true}
+        confirmLoading={loading}
       >
         <div className="container-fluid px-2">
           <Form form={itemForm} layout="vertical">
@@ -321,9 +165,9 @@ const handleSaveItem = () => {
 
             <Row gutter={12} className="gx-2">
               <Col xs={24} sm={12} className="mb-2">
-                <Form.Item 
-                  name="estoque" 
-                  label="Estoque Atual (Unidades)" 
+                <Form.Item
+                  name="estoque"
+                  label="Estoque Atual (Unidades)"
                   tooltip="Quantos comprimidos você tem na caixa agora?"
                   rules={[{ required: true, message: 'Obrigatório para o cálculo' }]}
                 >
@@ -331,9 +175,9 @@ const handleSaveItem = () => {
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} className="mb-2">
-                <Form.Item 
-                  name="usoDiario" 
-                  label="Uso por Dia" 
+                <Form.Item
+                  name="usoDiario"
+                  label="Uso por Dia"
                   tooltip="Quantos comprimidos a pessoa toma por dia?"
                   rules={[{ required: true, message: 'Obrigatório' }]}
                 >
@@ -357,13 +201,14 @@ const handleSaveItem = () => {
         </div>
       </Modal>
 
-      {/* --- MODAL PESSOA --- */}
+      {/* Modal Pessoa */}
       <Modal
         title="Nova Pessoa"
         open={personModalVisible}
-        onOk={handleSavePerson}
-        onCancel={() => { setPersonModalVisible(false); personForm.resetFields(); }}
+        onOk={onSavePerson}
+        onCancel={onCancelPersonModal}
         okText="Adicionar"
+        confirmLoading={loading}
       >
         <Form form={personForm} layout="vertical">
           <Form.Item name="nomePessoa" label="Nome" rules={[{ required: true }]}>
@@ -371,9 +216,9 @@ const handleSaveItem = () => {
           </Form.Item>
         </Form>
       </Modal>
-      
-<ChatAssistant dadosEstoque={dadosDoEstoque} />
 
+      {/* Chat Assistente */}
+      <ChatAssistant dadosEstoque={dadosDoEstoque} />
     </div>
   );
 };

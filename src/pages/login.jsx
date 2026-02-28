@@ -1,47 +1,22 @@
-import React, { useState } from 'react'; 
-import { useNavigate } from 'react-router-dom';
-import AuthService from '../api/AuthService'; 
-import { message } from 'antd'; 
-import { Input, Button, Form} from 'antd';
+import React from 'react'; 
+import { Input, Button } from 'antd';
+import useLoginForm from '../use/useLoginForm';
+
 const Login = () => {
   const brandColor = '#7F56D9';
-  const navigate = useNavigate();
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-
-      await AuthService.login(email, password);
-
-      message.success('Login realizado com sucesso!');
-      navigate('/dashboard');
-
-    } catch (error) {
-      console.error(error);
-      message.error('Email ou senha incorretos.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { email, password, loading, setEmail, setPassword, handleLogin } = useLoginForm();
 
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
       <div className="card border-0 shadow-sm p-4" style={{ maxWidth: '450px', width: '100%', borderRadius: '12px' }}>
         <div className="card-body px-4">
 
+          {/* Logo */}
           <div className="text-center mb-4">
             <div
               className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
               style={{ width: '64px', height: '64px', backgroundColor: '#f4ebff' }}
             >
-
-
               <svg
                 width="40"
                 height="40"
@@ -75,52 +50,50 @@ const Login = () => {
                   />
                 </g>
               </svg>
-
             </div>
 
             <h2 className="fw-bold mb-2 text-dark">Bem-vindo de volta</h2>
             <p className="text-muted mb-4">Insira suas credenciais para acessar o estoque.</p>
           </div>
 
-
+          {/* Formulário */}
           <form onSubmit={handleLogin}>
-  <div className="mb-3">
-    <label htmlFor="email" className="form-label fw-bold text-secondary small">Email</label>
-    {/* REFATORADO: Trocamos o <input> nativo pelo <Input> do Ant Design.
-       Usamos size="large" para ficar alto e bonito.
-    */}
-    <Input
-      size="large"
-      type="email"
-      id="email"
-      placeholder="nome@exemplo.com"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-    />
-  </div>
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label fw-bold text-secondary small">Email</label>
+              <Input
+                size="large"
+                type="email"
+                id="email"
+                placeholder="nome@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
 
-  <div className="mb-3">
-    <label htmlFor="password" className="form-label fw-bold text-secondary small">Senha</label>
-   
-    <Input.Password
-      size="large"
-      id="password"
-      placeholder="Digite sua senha"
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-     
-    />
-  </div>
+            <div className="mb-3">
+              <label htmlFor="password" className="form-label fw-bold text-secondary small">Senha</label>
+              <Input.Password
+                size="large"
+                id="password"
+                placeholder="Digite sua senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+            </div>
 
-  <button
-    type="submit"
-    disabled={loading}
-    className="btn w-100 text-white fw-bold py-2 mb-3 shadow-sm"
-    style={{ backgroundColor: brandColor, borderColor: brandColor }}
-  >
-    {loading ? 'Entrando...' : 'Entrar'}
-  </button>
-</form>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              loading={loading}
+              style={{ backgroundColor: brandColor, borderColor: brandColor }}
+            >
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
         </div>
       </div>
     </div>
