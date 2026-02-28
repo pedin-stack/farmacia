@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://farmacia-back-dm6j.onrender.com';
+const BASE_URL = 'http://localhost:8080/';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -10,30 +10,52 @@ const api = axios.create({
     timeout: 30000,
 });
 
-// Log requests for debugging
-api.interceptors.request.use((config) => {
-    // eslint-disable-next-line no-console
-    console.log('[API Request]', config.method?.toUpperCase(), config.url, config.params || '', config.data || '');
-    return config;
-}, (error) => {
-    
-    console.error('[API Request Error]', error);
-    return Promise.reject(error);
-});
-
-// Log responses for debugging
-api.interceptors.response.use((response) => {
-    // eslint-disable-next-line no-console
-    console.log('[API Response]', response.status, response.config.url, response.data);
-    return response;
-}, (error) => {
-    // eslint-disable-next-line no-console
-    if (error.response) {
-        console.error('[API Response Error]', error.response.status, error.response.config.url, error.response.data);
-    } else {
-        console.error('[API Response Error]', error.message);
+// Obtém o usuarioId do localStorage
+const getUsuarioId = () => {
+    try {
+        const usuarioString = localStorage.getItem('usuarioLogado');
+        if (!usuarioString) return null;
+        const usuario = JSON.parse(usuarioString);
+        return usuario?.id ?? null;
+    } catch {
+        return null;
     }
-    return Promise.reject(error);
-});
+};
+
+// Interceptor de REQUEST - injeta usuarioId automaticamente
+api.interceptors.request.use(
+    (config) => {
+        const urlPessoais = config.url.match(/\/(pessoas|remedios)/);
+
+        if (urlPessoais) {
+            const usuarioId = getUsuarioId();
+
+            if (!usuarioId) {
+                console.error('[API] usuarioId não disponível para:', config.url);
+            }
+
+            if (!config.params) {
+                config.params = {};
+            }
+            config.params.usuarioId = usuarioId;
+        }
+
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Interceptor de RESPONSE
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response) {
+            console.error(`[API] ${error.response.status} ${error.response.config.url}`, error.response.data);
+        } else {
+            console.error('[API] Erro de rede:', error.message);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default api;

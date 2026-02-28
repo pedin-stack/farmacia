@@ -5,7 +5,7 @@ import useRemedio from './useRemedio';
 import { message } from 'antd';
 
 const useDashboard = () => {
-  const { pessoas, findAll, save: savePessoa, deletePessoa, removerItem, atualizarItem } = usePessoa();
+  const { pessoas, findAll, save: savePessoa, deletePessoa, removerItem } = usePessoa();
   const { deleteRemedio, save: saveRemedio, update: updateRemedio } = useRemedio();
 
   // Estado de UI (modais e formulários)
@@ -34,7 +34,7 @@ const useDashboard = () => {
     } catch {
       message.error('Erro ao carregar dados de autenticação');
     }
-  }, []);
+  }, [loadDados]);
 
   const loadDados = useCallback(async () => {
     setLoading(true);
