@@ -15,6 +15,18 @@ const useDashboard = () => {
   const [personModalVisible, setPersonModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const loadDados = useCallback(async () => {
+    setLoading(true);
+    try {
+      await findAll();
+    } catch (err) {
+      message.error('Erro ao carregar dados do servidor');
+      console.error('[Dashboard] Erro:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [findAll]);
+
   // Carregar dados na montagem
   useEffect(() => {
     const usuarioString = localStorage.getItem('usuarioLogado');
@@ -35,18 +47,6 @@ const useDashboard = () => {
       message.error('Erro ao carregar dados de autenticação');
     }
   }, [loadDados]);
-
-  const loadDados = useCallback(async () => {
-    setLoading(true);
-    try {
-      await findAll();
-    } catch (err) {
-      message.error('Erro ao carregar dados do servidor');
-      console.error('[Dashboard] Erro:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [findAll]);
 
   // ===== HANDLERS PESSOA =====
   const handleAddPerson = useCallback(() => {
