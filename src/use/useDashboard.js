@@ -116,7 +116,7 @@ const useDashboard = () => {
     };
 
     if (formValues.horario) {
-      payloadBase.horaConsumo = formValues.horario.format('HH:mm:ss');
+      payloadBase.horario = formValues.horario.format('HH:mm');
     }
 
     setLoading(true);
