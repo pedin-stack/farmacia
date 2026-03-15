@@ -109,26 +109,26 @@ const useDashboard = () => {
   }, [deleteRemedio, removerItem]);
 
   const handleSaveItem = useCallback(async (formValues) => {
-    const payloadRemedio = {
+    const payloadBase = {
       nome: formValues.remedio,
       quantidade: formValues.estoque,
       usoDiario: formValues.usoDiario,
-      pessoaId: targetPersonId
     };
 
     if (formValues.horario) {
-      payloadRemedio.horaConsumo = formValues.horario.format('HH:mm:ss');
+      payloadBase.horaConsumo = formValues.horario.format('HH:mm:ss');
     }
 
     setLoading(true);
     try {
-      console.log('Enviando:', payloadRemedio);
-
       if (editingItem) {
-        await updateRemedio(editingItem.id, payloadRemedio);
+        console.log('Enviando (PUT):', payloadBase);
+        await updateRemedio(editingItem.id, payloadBase);
         message.success('Medicamento atualizado!');
       } else {
-        await saveRemedio(payloadRemedio);
+        const payloadCreate = { ...payloadBase, pessoaId: targetPersonId };
+        console.log('Enviando (POST):', payloadCreate);
+        await saveRemedio(payloadCreate);
         message.success('Medicamento criado!');
       }
 
